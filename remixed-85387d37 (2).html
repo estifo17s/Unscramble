@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unscramble</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f0e8;
+    --surface: #fff;
+    --ink: #1a1208;
+    --muted: #8a7f6e;
+    --accent: #c84b2f;
+    --accent-light: #f5e8e4;
+    --border: #ddd5c4;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.5;
+  }
+
+  .container { max-width: 680px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 3rem; padding-top: 1rem; }
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(3rem, 10vw, 5.5rem);
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+  }
+  h1 span { color: var(--accent); font-style: italic; }
+
+  .subtitle { margin-top: 1rem; font-size: 0.95rem; color: var(--muted); font-weight: 300; }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    margin-bottom: 2rem;
+  }
+
+  .input-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.6rem;
+    display: block;
+  }
+
+  .letter-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 52px;
+    margin-bottom: 1.25rem;
+    align-items: center;
+  }
+
+  .letter-tile {
+    width: 44px; height: 52px;
+    background: var(--ink);
+    color: var(--bg);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem; font-weight: 700;
+    text-transform: uppercase;
+    animation: tileIn 0.2s ease backwards;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .letter-tile.accent { background: var(--accent); }
+
+  @keyframes tileIn {
+    from { transform: translateY(-6px) scale(0.85); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+
+  .input-row { display: flex; gap: 0.75rem; align-items: stretch; }
+
+  input[type="text"], select {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    color: var(--ink);
+    background: var(--bg);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+  }
+
+  #letterInput {
+    flex: 1;
+    font-family: 'DM Mono', monospace;
+    font-size: 1.1rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  #letterInput::placeholder {
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--border);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+  }
+
+  input[type="text"]:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light);
+  }
+
+  /* Options toggle */
+  .options-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0.75rem 0 0;
+    transition: color 0.15s;
+    width: 100%;
+    text-align: left;
+  }
+  .options-toggle:hover { color: var(--accent); }
+  .options-toggle .chevron {
+    display: inline-block;
+    transition: transform 0.2s;
+    font-style: normal;
+    font-size: 0.8rem;
+    margin-left: auto;
+  }
+  .options-toggle.open .chevron { transform: rotate(180deg); }
+  .options-toggle.has-active { color: var(--accent); }
+  .options-toggle .badge {
+    background: var(--accent);
+    color: #fff;
+    border-radius: 10px;
+    font-size: 0.6rem;
+    padding: 1px 6px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Options panel */
+  .options-panel {
+    display: none;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    margin-top: 0.75rem;
+    animation: slideDown 0.2s ease;
+  }
+  .options-panel.open { display: block; }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.9rem;
+  }
+
+  .option-field { display: flex; flex-direction: column; gap: 0.4rem; }
+
+  .option-field label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.63rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Custom select wrapper */
+  .select-wrap { position: relative; }
+  .select-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+
+  .options-reset {
+    margin-top: 0.9rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .options-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Unscramble button */
+  button.unscramble-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0.85rem 1.5rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px rgba(200,75,47,0.3);
+    -webkit-appearance: none;
+  }
+  button.unscramble-btn:hover { background: #b03d24; box-shadow: 0 4px 12px rgba(200,75,47,0.4); }
+  button.unscramble-btn:active { transform: scale(0.97); }
+  button.unscramble-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+  /* Results */
+  .results-header {
+    display: flex; align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 1.25rem; gap: 1rem;
+  }
+  .results-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; }
+  .results-count { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--muted); letter-spacing: 0.1em; }
+
+  .filter-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1.5rem; }
+  .filter-tab {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem; letter-spacing: 0.08em;
+    padding: 4px 12px; border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: transparent; color: var(--muted);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .filter-tab.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  .length-group { margin-bottom: 2rem; }
+  .length-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 0.75rem;
+    padding-bottom: 0.4rem; border-bottom: 1px solid var(--border);
+  }
+
+  .word-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .word-chip {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--ink);
+    animation: chipIn 0.3s ease backwards;
+    transition: border-color 0.15s, background 0.15s;
+    cursor: default;
+  }
+  .word-chip:hover { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+
+  @keyframes chipIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .loading { display: flex; align-items: center; gap: 0.75rem; padding: 2rem; justify-content: center; color: var(--muted); font-size: 0.9rem; }
+  .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .state-msg { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
+  .state-msg .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+  .state-msg p { font-size: 0.9rem; line-height: 1.6; }
+  .state-msg.error p { color: var(--accent); }
+
+  @media (max-width: 480px) {
+    .card { padding: 1.5rem; }
+    .input-row { flex-direction: column; }
+    button.unscramble-btn { width: 100%; padding: 1rem; }
+    .letter-tile { width: 38px; height: 44px; font-size: 1.2rem; }
+    .options-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <p class="eyebrow">Word Game Tool</p>
+    <h1>Un<span>scramble</span></h1>
+    <p class="subtitle">Type any letters — discover every real word hiding inside.</p>
+  </header>
+
+  <div class="card">
+    <span class="input-label">Your letters</span>
+    <div class="letter-display" id="letterDisplay">
+      <span style="color: var(--border); font-size: 0.9rem; font-style: italic;">Letters will appear here…</span>
+    </div>
+    <div class="input-row">
+      <input type="text" id="letterInput" placeholder="e.g. arets, triangle…" maxlength="15" autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="unscramble-btn" id="unscrambleBtn" onclick="unscramble()">Unscramble →</button>
+    </div>
+
+    <!-- Options toggle -->
+    <button class="options-toggle" id="optionsToggle" onclick="toggleOptions()">
+      <span>⚙ Options</span>
+      <span id="optionsBadge" style="display:none" class="badge">active</span>
+      <span class="chevron">▾</span>
+    </button>
+
+    <!-- Options panel -->
+    <div class="options-panel" id="optionsPanel">
+      <div class="options-grid">
+        <div class="option-field">
+          <label for="startsWith">Starts with</label>
+          <input type="text" id="startsWith" placeholder="e.g. st" maxlength="8" autocomplete="off" autocorrect="off" spellcheck="false">
+        </div>
+        <div class="option-field">
+          <label for="endsWith">Ends with</label>
+          <input type="text" id="endsWith" placeholder="e.g. ing" maxlength="8" autocomplete="off" autocorrect="off" spellcheck="false">
+        </div>
+        <div class="option-field">
+          <label for="contains">Contains</label>
+          <input type="text" id="contains" placeholder="e.g. ar" maxlength="8" autocomplete="off" autocorrect="off" spellcheck="false">
+        </div>
+        <div class="option-field">
+          <label for="wordLength">Word length</label>
+          <div class="select-wrap">
+            <select id="wordLength">
+              <option value="">Any length</option>
+              <option value="2">2 letters</option>
+              <option value="3">3 letters</option>
+              <option value="4">4 letters</option>
+              <option value="5">5 letters</option>
+              <option value="6">6 letters</option>
+              <option value="7">7 letters</option>
+              <option value="8">8 letters</option>
+              <option value="9">9+ letters</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <button class="options-reset" onclick="resetOptions()">✕ Clear options</button>
+    </div>
+  </div>
+
+  <div id="resultsArea"></div>
+</div>
+
+<script>
+const input = document.getElementById('letterInput');
+const display = document.getElementById('letterDisplay');
+const btn = document.getElementById('unscrambleBtn');
+const optionsPanel = document.getElementById('optionsPanel');
+const optionsToggle = document.getElementById('optionsToggle');
+
+input.addEventListener('input', () => {
+  const val = input.value.replace(/[^a-zA-Z]/g, '');
+  input.value = val;
+  renderTiles(val);
+});
+input.addEventListener('keydown', e => { if (e.key === 'Enter') unscramble(); });
+
+// Track options changes for badge
+['startsWith','endsWith','contains','wordLength'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateOptionsBadge);
+  document.getElementById(id).addEventListener('change', updateOptionsBadge);
+});
+
+function updateOptionsBadge() {
+  const hasActive = getOptionsActive();
+  document.getElementById('optionsBadge').style.display = hasActive ? '' : 'none';
+  optionsToggle.classList.toggle('has-active', hasActive);
+}
+
+function getOptionsActive() {
+  return !!(
+    document.getElementById('startsWith').value.trim() ||
+    document.getElementById('endsWith').value.trim() ||
+    document.getElementById('contains').value.trim() ||
+    document.getElementById('wordLength').value
+  );
+}
+
+function toggleOptions() {
+  const open = optionsPanel.classList.toggle('open');
+  optionsToggle.classList.toggle('open', open);
+}
+
+function resetOptions() {
+  ['startsWith','endsWith','contains'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('wordLength').value = '';
+  updateOptionsBadge();
+}
+
+function renderTiles(letters) {
+  if (!letters) {
+    display.innerHTML = '<span style="color: var(--border); font-size: 0.9rem; font-style: italic;">Letters will appear here…</span>';
+    return;
+  }
+  display.innerHTML = letters.split('').map((l, i) => {
+    const cls = (i % 7 === 0 && i !== 0) ? 'letter-tile accent' : 'letter-tile';
+    return `<div class="${cls}" style="animation-delay:${i * 0.04}s">${l}</div>`;
+  }).join('');
+}
+
+async function unscramble() {
+  const letters = input.value.trim().toUpperCase();
+  if (!letters || letters.length < 2) {
+    showMessage('✏️', 'Please enter at least 2 letters to unscramble.');
+    return;
+  }
+
+  const startsWith = document.getElementById('startsWith').value.trim().toLowerCase();
+  const endsWith   = document.getElementById('endsWith').value.trim().toLowerCase();
+  const contains   = document.getElementById('contains').value.trim().toLowerCase();
+  const wordLength = document.getElementById('wordLength').value;
+
+  btn.disabled = true;
+  showLoading();
+
+  // Build constraints description for the prompt
+  const constraints = [];
+  if (startsWith) constraints.push(`must START with the letters "${startsWith}"`);
+  if (endsWith)   constraints.push(`must END with the letters "${endsWith}"`);
+  if (contains)   constraints.push(`must CONTAIN the letters "${contains}" somewhere`);
+  if (wordLength) {
+    if (wordLength === '9') constraints.push(`must be 9 or more letters long`);
+    else constraints.push(`must be exactly ${wordLength} letters long`);
+  }
+  const constraintText = constraints.length
+    ? `\n\nAdditional constraints — only include words that:\n${constraints.map(c => '- ' + c).join('\n')}`
+    : '';
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: `You are a word unscrambler. Given a set of letters, find ALL valid English words (common dictionary words, no proper nouns, no abbreviations) that can be formed using only those letters (each letter used only as many times as it appears in the input).
+
+Return ONLY a JSON object with this exact structure, no other text:
+{"words": ["word1", "word2", ...]}
+
+Include words of 2 letters and longer. Sort by length descending, then alphabetically. Be thorough.`,
+        messages: [{
+          role: 'user',
+          content: `Letters: ${letters}${constraintText}`
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content.map(b => b.text || '').join('');
+
+    let parsed;
+    try {
+      const clean = text.replace(/```json|```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      throw new Error('Could not parse response');
+    }
+
+    let words = (parsed.words || []).map(w => w.toLowerCase());
+
+    // Client-side filter safety net (model usually handles it but belt-and-suspenders)
+    if (startsWith) words = words.filter(w => w.startsWith(startsWith));
+    if (endsWith)   words = words.filter(w => w.endsWith(endsWith));
+    if (contains)   words = words.filter(w => w.includes(contains));
+    if (wordLength) {
+      const len = parseInt(wordLength);
+      words = wordLength === '9'
+        ? words.filter(w => w.length >= 9)
+        : words.filter(w => w.length === len);
+    }
+
+    renderResults(words, letters, { startsWith, endsWith, contains, wordLength });
+
+  } catch (err) {
+    showMessage('⚠️', 'Something went wrong. Please try again.', true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function showLoading() {
+  document.getElementById('resultsArea').innerHTML = `
+    <div class="loading"><div class="spinner"></div>Finding all possible words…</div>`;
+}
+
+function showMessage(icon, text, isError = false) {
+  document.getElementById('resultsArea').innerHTML = `
+    <div class="state-msg ${isError ? 'error' : ''}">
+      <div class="icon">${icon}</div><p>${text}</p>
+    </div>`;
+}
+
+function renderResults(words, letters, opts) {
+  const area = document.getElementById('resultsArea');
+  if (!words.length) {
+    const filterNote = getOptionsActive() ? ' with the current filters' : '';
+    showMessage('🔤', `No words found for <strong>${letters}</strong>${filterNote}. Try adjusting your letters or options.`);
+    return;
+  }
+
+  // Group by length
+  const groups = {};
+  for (const w of words) {
+    const len = w.length;
+    if (!groups[len]) groups[len] = [];
+    groups[len].push(w);
+  }
+
+  const lengths = Object.keys(groups).map(Number).sort((a, b) => b - a);
+  const allLengths = ['all', ...lengths];
+
+  // Active filter summary
+  const filterParts = [];
+  if (opts.startsWith) filterParts.push(`starts with <strong>${opts.startsWith}</strong>`);
+  if (opts.endsWith)   filterParts.push(`ends with <strong>${opts.endsWith}</strong>`);
+  if (opts.contains)   filterParts.push(`contains <strong>${opts.contains}</strong>`);
+  if (opts.wordLength) filterParts.push(`${opts.wordLength === '9' ? '9+' : opts.wordLength} letters`);
+  const filterNote = filterParts.length
+    ? `<div style="font-size:0.8rem;color:var(--muted);margin-top:-0.5rem;margin-bottom:1.25rem;">Filtered: ${filterParts.join(' · ')}</div>`
+    : '';
+
+  let html = `
+    <div class="results-header">
+      <span class="results-title">Results</span>
+      <span class="results-count">${words.length} word${words.length !== 1 ? 's' : ''} found</span>
+    </div>
+    ${filterNote}
+    <div class="filter-tabs">
+      ${allLengths.map((l, i) => `
+        <button class="filter-tab ${i === 0 ? 'active' : ''}" onclick="filterLength(this, '${l}')">
+          ${l === 'all' ? 'All' : `${l}${l === 9 ? '+' : ''} letter${l > 1 ? 's' : ''}`}
+        </button>`).join('')}
+    </div>
+    <div id="wordGroups">`;
+
+  for (const len of lengths) {
+    const sorted = groups[len].sort();
+    html += `
+      <div class="length-group" data-len="${len}">
+        <div class="length-label">${len}-letter words (${sorted.length})</div>
+        <div class="word-grid">
+          ${sorted.map((w, i) => `<div class="word-chip" style="animation-delay:${Math.min(i * 0.03, 0.5)}s">${w}</div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  html += '</div>';
+  area.innerHTML = html;
+}
+
+function filterLength(tabBtn, len) {
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  tabBtn.classList.add('active');
+  document.querySelectorAll('.length-group').forEach(g => {
+    g.style.display = (len === 'all' || g.dataset.len === len) ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>
